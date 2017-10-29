@@ -1,5 +1,4 @@
 # Wifi-enabled LED Umbrella Project
----
 
 This is part of a wearables/fashion/art project for entry in the Light My Ride annual lighted bike ride event in Amsterdam.
 
