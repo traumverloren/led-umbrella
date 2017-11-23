@@ -1,9 +1,11 @@
 #include <ESP8266WiFi.h> // Include the ESP8266 Library
 #include <Adafruit_NeoPixel.h> // Include the adafruit Neopixel Library
-#include <WebSocketsClient.h> // Include Socket.IO client library to communicate with RPi & Server!
+#include <WebSocketsClient.h> // Include Socket.IO client library to communicate with Server!
 
-const char* ssid     = "SSID HERE";
-const char* password = "PASSWORD HERE";
+const char* ssid     = "SSID";
+const char* password = "PASSWORD";
+
+String currentProgram = "colorWipe";
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = pin number (most are valid)
@@ -83,9 +85,16 @@ const String getEventPayload(const String msg) {
 void trigger(const char* event, const char * payload, size_t length) {
   Serial.printf("[WSc] trigger event %s\n", event);
   
-  if(strcmp(event, "shirtColors") == 0) {
+  if(strcmp(event, "rainbow") == 0) {
     Serial.printf("[WSc] trigger event %s\n", event);
-    shirtColors(payload, length);
+    currentProgram = "rainbow";
+//    shirtColors(payload, length);
+  } else if (strcmp(event, "colorWipe") == 0){
+     Serial.printf("[WSc] trigger event %s\n", event);
+     currentProgram = "colorWipe";
+  } else if (strcmp(event, "rain") == 0){
+     Serial.printf("[WSc] trigger event %s\n", event);
+     currentProgram = "rain";
   }
 }
 
@@ -152,6 +161,20 @@ void setup() {
 void loop() {
   webSocket.loop();
 
+  if (currentProgram == "colorWipe") {
+      
+//      colorWipe(strip_1.Color(0, 0, 0, 255), 50); // White
+//      colorWipe(strip_1.Color(255, 0, 0, 0), 50); // Red
+//      colorWipe(strip_1.Color(0, 255, 0, 0), 50); // Green
+//      colorWipe(strip_1.Color(0, 0, 255, 0), 50); // Blue
+  } else if (currentProgram == "rainbow") {
+      Serial.print("rainbow");
+  } else if (currentProgram == "rain" ) {
+      Serial.print("rain");
+  } else {
+    Serial.print("ELSE UH OH");
+  }
+
   delay(10);
 
   if(isConnected) {
@@ -176,13 +199,7 @@ void loop() {
       delay(10);
       webSocket.beginSocketIO("led-umbrella.herokuapp.com", 80);
       isConnected = true;
-    }
-    
-  // Some example procedures showing how to display to the pixels:
-  // colorWipe(strip_1.Color(0, 0, 0, 255), 50); // White
-  // colorWipe(strip_1.Color(255, 0, 0, 0), 50); // Red
-  // colorWipe(strip_1.Color(0, 255, 0, 0), 50); // Green
-  // colorWipe(strip_1.Color(0, 0, 255, 0), 50); // Blue
+    }    
 }
  
 // Fill the dots one after the other with a color
