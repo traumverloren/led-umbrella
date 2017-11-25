@@ -122,6 +122,7 @@ void shirtColors(const char * colors, size_t length) {
   int b2 = number2 & 0xFF;
 }
 
+int brightness = 100;
 void setup() {  
   strip_1.begin();
   strip_2.begin();
@@ -131,14 +132,14 @@ void setup() {
   strip_6.begin();
   strip_7.begin();
   strip_8.begin();  
-  strip_1.setBrightness(30); //adjust brightness here
-  strip_2.setBrightness(30); //adjust brightness here
-  strip_3.setBrightness(30); //adjust brightness here
-  strip_4.setBrightness(30); //adjust brightness here
-  strip_5.setBrightness(30); //adjust brightness here
-  strip_6.setBrightness(30); //adjust brightness here
-  strip_7.setBrightness(30); //adjust brightness here
-  strip_8.setBrightness(30); //adjust brightness here
+  strip_1.setBrightness(brightness); //adjust brightness here
+  strip_2.setBrightness(brightness); //adjust brightness here
+  strip_3.setBrightness(brightness); //adjust brightness here
+  strip_4.setBrightness(brightness); //adjust brightness here
+  strip_5.setBrightness(brightness); //adjust brightness here
+  strip_6.setBrightness(brightness); //adjust brightness here
+  strip_7.setBrightness(brightness); //adjust brightness here
+  strip_8.setBrightness(brightness); //adjust brightness here
   strip_1.show(); // Initialize all pixels to 'off'
   strip_2.show(); // Initialize all pixels to 'off'}
   strip_3.show(); // Initialize all pixels to 'off'}
@@ -249,12 +250,14 @@ void showStrips() {
 
 // Rain Program
 void rain() {
-  delay(25);
+  uint32_t color = strip_1.Color(0, 0, 255);
+  delay(15);
   // first move any ON lights down one on each strip
   for(int x=0; x < stripCount; x++) {
     for(int y=ledCount-1; y>0; y--) {
-      if (strips[x][y-1] == 1) {
-          strips[x][y] = 1;
+      if (strips[x][y-1] != 0) {
+          strips[x][y] = DimColor2(strips[x][y-1], .75);//strips[x][y-1];
+          
       }
       else {
           strips[x][y] = 0;  
@@ -264,23 +267,29 @@ void rain() {
     strips[x][0] = 0;
   }
   // turn on light at first position of random strip
-  strips[random(stripCount)][0] = 1;
+  strips[random(stripCount)][0] = color;
 
   // draw lights according to strips[][] array
   for(int x=0; x < stripCount; x++) {
     for(int y=ledCount-1; y>=0; y--) {
-      if (strips[x][y] == 0) {
-          pixelStrips[x].setPixelColor(y, 0, 0, 0, 0);  
-      }
-      else if (strips[x][y] == 1){
-          pixelStrips[x].setPixelColor(y, 0, 0, 127, 0);
-          strips[x][y-1] = 2; // set following pixel to trailing
-      }
-      else if (strips[x][y] == 2) {
-          // use a lighter blue for trailing pixels
-          pixelStrips[x].setPixelColor(y, 0, 0, 20, 0);
-      }
-    pixelStrips[x].show();
+      pixelStrips[x].setPixelColor(y, strips[x][y]);
+ 
+
+      
+//      pixelStrips[x].setPixelColor(y-1, strips[x][y-1]);
+//      strips[x][y-1]=DimColor(strips[x][y]);
+//      pixelStrips[x].setPixelColor(y-1, strips[x][y-1]);
+//      
+//      strips[x][y-2]=DimColor(strips[x][y-1]);
+//      pixelStrips[x].setPixelColor(y-2, strips[x][y-2]);
+//
+//      strips[x][y-3]=DimColor(strips[x][y-2]);
+//      pixelStrips[x].setPixelColor(y-3, strips[x][y-3]);
+//      
+//      strips[x][y-4]=DimColor(strips[x][y-3]);
+//      pixelStrips[x].setPixelColor(y-4, strips[x][y-4]);
+      
+      pixelStrips[x].show();
     }
   }
   
@@ -314,6 +323,41 @@ void rainbowRain() {
     }
   }
   
+}
+
+// Returns the Red component of a 32-bit color
+uint8_t Red(uint32_t color)
+{
+    return (color >> 16) & 0xFF;
+}
+
+// Returns the Green component of a 32-bit color
+uint8_t Green(uint32_t color)
+{
+    return (color >> 8) & 0xFF;
+}
+
+// Returns the Blue component of a 32-bit color
+uint8_t Blue(uint32_t color)
+{
+    return color & 0xFF;
+}
+
+// Return color, dimmed by 75% (used by scanner)
+uint32_t DimColor(uint32_t color)
+{
+    uint32_t dimColor = strip_1.Color(Red(color) >> 1, Green(color) >> 1, Blue(color) >> 1);
+    return dimColor;
+}
+
+// Return color, dimmed by 75% (used by scanner)
+uint32_t DimColor2(uint32_t color, float dimPercent)
+{
+  int red = Red(color) * dimPercent;
+  int blue = Blue(color) * dimPercent;
+  int green = Green(color) * dimPercent;
+  uint32_t dimColor = strip_1.Color(red, green, blue);
+  return dimColor;
 }
 
 
