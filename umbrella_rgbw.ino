@@ -2,8 +2,8 @@
 #include <Adafruit_NeoPixel.h> // Include the adafruit Neopixel Library
 #include <WebSocketsClient.h> // Include Socket.IO client library to communicate with Server!
 
-const char* ssid     = "";
-const char* password = "";
+const char* ssid     = "ssid";
+const char* password = "password";
 
 const int length = 17;
 
@@ -24,6 +24,11 @@ Adafruit_NeoPixel strip_5 = Adafruit_NeoPixel(length, 15, NEO_GRBW + NEO_KHZ800)
 Adafruit_NeoPixel strip_6 = Adafruit_NeoPixel(length, 12, NEO_GRBW + NEO_KHZ800);  
 Adafruit_NeoPixel strip_7 = Adafruit_NeoPixel(length, 13, NEO_GRBW + NEO_KHZ800);  
 Adafruit_NeoPixel strip_8 = Adafruit_NeoPixel(length, 14, NEO_GRBW + NEO_KHZ800);
+
+Adafruit_NeoPixel pixelStrips[8] = {strip_1, strip_2, strip_3, strip_4, strip_5, strip_6, strip_7, strip_8};
+uint32_t strips[8][17];
+int stripCount = 8;
+int ledCount = 17;
 
 WiFiClient client;
 WebSocketsClient webSocket;
@@ -233,68 +238,76 @@ void showStrips() {
   strip_7.show();
   strip_8.show();
 }
+
 // Rain Program
- 
-void rain() {
-  int pos[17];
-    // Set each rain drop at the starting gate.
-  // Signify by a position of -1
-  for( int i=0; i < length; i++) {
-    pos[i]=-1;
-  }
-
-  boolean done=false;
-  int counter = 0;
-  while(!done) {
-  // Start by turning all LEDs off:
-  for(int i=0; i<strip_1.numPixels(); i++) {
-    strip_1.setPixelColor(i, 0);
-    strip_2.setPixelColor(i, 0);
-    strip_3.setPixelColor(i, 0);
-    strip_4.setPixelColor(i, 0);
-    strip_5.setPixelColor(i, 0);
-    strip_6.setPixelColor(i, 0);
-    strip_7.setPixelColor(i, 0);
-    strip_8.setPixelColor(i, 0);  
-    showStrips();
-  }
-
-  // Loop for each rain drop
-  for( int i=0; i < length; i++) {
-  // If the drop is out of the starting gate,
-  // turn on the LED for it.
-    if( pos[i] >= 0 ) {
-      strip_1.setPixelColor(pos[i], strip_1.Color(0, 0, 127, 0));
-      strip_2.setPixelColor(pos[i], strip_1.Color(0, 0, 127, 0));
-      strip_3.setPixelColor(pos[i], strip_1.Color(0, 0, 127, 0));
-      strip_4.setPixelColor(pos[i], strip_1.Color(0, 0, 127, 0));
-      strip_5.setPixelColor(pos[i], strip_1.Color(0, 0, 127, 0));
-      strip_6.setPixelColor(pos[i], strip_1.Color(0, 0, 127, 0));
-      strip_7.setPixelColor(pos[i], strip_1.Color(0, 0, 127, 0));
-      strip_8.setPixelColor(pos[i], strip_1.Color(0, 0, 127, 0));
-      // Move the drop down one row
-      pos[i] -= 1;
+void RegularRain() {
+  delay(25);
+  // first move any ON lights down one on each strip
+  for(int x=0; x < stripCount; x++) {
+    for(int y=ledCount-1; y>0; y--) {
+      if (strips[x][y-1] == 1) {
+          strips[x][y] = 1;
+      }
+      else {
+          strips[x][y] = 0;  
+      }
     }
-
-    // If we've fallen off the strip, but us back at the starting gate.
-    if( pos[i] < 0 ) {
-      pos[i]=-1;
-    }
-    // If this drop is at the starting gate, randomly
-    // see if we should start it falling.
-    if ( pos[i] == -1 && random(40) == 0 && counter < 380) {
-      // Pick one of the 6 starting spots to begin falling
-      pos[i] = 17-random(16);
-    } else if (counter >= 380) {
-      done = true;
-    }
-    counter += 1;
-    showStrips();
-    delay(2);
+    // each row: special case turn off all first lights
+    strips[x][0] = 0;
   }
-  }
+  // turn on light at first position of random strip
+  strips[random(stripCount)][0] = 1;
 
+  // draw lights according to strips[][] array
+  for(int x=0; x < stripCount; x++) {
+    for(int y=ledCount-1; y>=0; y--) {
+      if (strips[x][y] == 0) {
+          pixelStrips[x].setPixelColor(y, 0, 0, 0, 0);  
+      }
+      else if (strips[x][y] == 1){
+          pixelStrips[x].setPixelColor(y, 0, 0, 127, 0);
+          strips[x][y-1] = 2; // set following pixel to trailing
+      }
+      else if (strips[x][y] == 2) {
+          // use a lighter blue for trailing pixels
+          pixelStrips[x].setPixelColor(y, 0, 0, 20, 0);
+      }
+    pixelStrips[x].show();
+    }
+  }
+  
 }
+
+// Rainbow Rain Program
+void rain() {
+  uint32_t color = strip_1.Color(random(200), random(200), random(200));
+  delay(25);
+  // first move any ON lights down one on each strip
+  for(int x=0; x < stripCount; x++) {
+    for(int y=ledCount-1; y>0; y--) {
+      if (strips[x][y-1] != 0) {
+          strips[x][y] = strips[x][y-1];
+      }
+      else {
+          strips[x][y] = 0;  
+      }
+    }
+    // each row: special case turn off all first lights
+    strips[x][0] = 0;
+  }
+  // turn on light at first position of random strip
+  strips[random(stripCount)][0] = color;
+
+  // draw lights according to strips[][] array
+  for(int x=0; x < stripCount; x++) {
+    for(int y=ledCount-1; y>=0; y--) {
+      pixelStrips[x].setPixelColor(y, strips[x][y]);
+      pixelStrips[x].show();
+    }
+  }
+  
+}
+
 //Rainbow Program
 //void rainbow(uint8_t wait) {
 //  uint16_t i, j;
