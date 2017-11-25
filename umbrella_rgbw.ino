@@ -47,6 +47,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         case WStype_DISCONNECTED:
             Serial.printf("[WSc] Disconnected!\n");
             isConnected = false;
+            currentMode = modeSocketConnect;
             break;
         case WStype_CONNECTED:
             {
