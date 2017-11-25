@@ -3,11 +3,11 @@
 #include <WebSocketsClient.h> // Include Socket.IO client library to communicate with Server!
 
 const char* ssid     = "ssid";
-const char* password = "password";
+const char* password = "pw";
 
 const int length = 17;
 
-enum mode {modeColorWipe, modeRain, modeRainbow, modeSocketConnect};
+enum mode {modeColorWipe, modeRainbowRain, modeRain, modeRainbow, modeSocketConnect};
 mode currentMode = modeSocketConnect;
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = pin number (most are valid)
@@ -99,6 +99,9 @@ void trigger(const char* event, const char * payload, size_t length) {
   } else if (strcmp(event, "colorWipe") == 0){
      Serial.printf("[WSc] trigger event %s\n", event);
      currentMode = modeColorWipe;
+  } else if (strcmp(event, "rainbowRain") == 0){
+     Serial.printf("[WSc] trigger event %s\n", event);
+     currentMode = modeRainbowRain;
   } else if (strcmp(event, "rain") == 0){
      Serial.printf("[WSc] trigger event %s\n", event);
      currentMode = modeRain;
@@ -182,6 +185,10 @@ void loop() {
       Serial.print("rain\n");
       rain();
       break;
+    case modeRainbowRain:
+      Serial.print("rainbow rain\n");
+      rainbowRain();
+      break;
     default:
       break;
   }
@@ -240,7 +247,7 @@ void showStrips() {
 }
 
 // Rain Program
-void RegularRain() {
+void rain() {
   delay(25);
   // first move any ON lights down one on each strip
   for(int x=0; x < stripCount; x++) {
@@ -279,7 +286,7 @@ void RegularRain() {
 }
 
 // Rainbow Rain Program
-void rain() {
+void rainbowRain() {
   uint32_t color = strip_1.Color(random(200), random(200), random(200));
   delay(25);
   // first move any ON lights down one on each strip
@@ -307,6 +314,7 @@ void rain() {
   }
   
 }
+
 
 //Rainbow Program
 //void rainbow(uint8_t wait) {
