@@ -9,7 +9,7 @@ const int stripCount = 8;
 const int ledCount = 17;
 const int brightness = 100;
 
-enum mode {modeColorWipe, modeRainbowRain, modeRain, modeRainbow, modeSocketConnect, modeSparkle};
+enum mode {modeColorWipe, modeRainbowRain, modeRain, modeRainbow, modeSocketConnect, modeSnake, modeSparkle};
 mode currentMode = modeSocketConnect;
 
 // Parameter 1 = number of pixels in strip
@@ -88,7 +88,9 @@ const String getEventPayload(const String msg) {
 }
 
 void trigger(const char* event, const char * payload, size_t triggerLength) {
- if(strcmp(event, "rainbow") == 0) {
+  Serial.printf("[WSc] trigger event %s\n", event);
+  
+  if(strcmp(event, "rainbow") == 0) {
     Serial.printf("[WSc] trigger event %s\n", event);
     currentMode = modeRainbow;
 
@@ -104,6 +106,9 @@ void trigger(const char* event, const char * payload, size_t triggerLength) {
   } else if (strcmp(event, "sparkle") == 0){
      Serial.printf("[WSc] trigger event %s\n", event);
      currentMode = modeSparkle;
+  } else if (strcmp(event, "snake") == 0){
+     Serial.printf("[WSc] trigger event %s\n", event);
+     currentMode = modeSnake;
   }
 }
 
@@ -161,6 +166,10 @@ void loop() {
     case modeSparkle:
       Serial.print("sparkle\n");
       sparkle();
+      break;
+    case modeSnake:
+      Serial.print("snake\n");
+      snake();
       break;
     default:
       break;
@@ -232,13 +241,52 @@ void colorWipe(uint32_t c, uint8_t wait) {
 void sparkle() {
   int x = random(8);
   int y = random(17);
-  strips[x][y] = strip_1.Color(255, 255, 255);;
+  strips[x][y] = strip_1.Color(255, 255, 255);
 
   x = random(8);
   y = random(17);
   strips[x][y] = 0;
 
   updateStrips();
+}
+
+void snake() {
+  uint16_t count = 0;
+  for(int x=0; x < stripCount; x++) {
+    for(uint16_t i=0; i<ledCount; i++) {
+      if (count < 18) {
+         strip_8.setPixelColor(i, 0); // Erase 'tail'
+         strip_1.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
+      } else if ( 17 < count && count < 35) {
+        Serial.printf("here! %i\n", count);
+         strip_1.setPixelColor(i, 0); // Erase 'tail'
+         strip_2.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
+      } else if (34 < count && count < 52) {
+         strip_2.setPixelColor(i, 0); // Erase 'tail'
+         strip_3.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
+      } else if (51 < count && count < 69) {
+         strip_3.setPixelColor(i, 0); // Erase 'tail'
+         strip_4.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel      
+      } else if (68 < count && count < 86) {
+        strip_4.setPixelColor(i, 0); // Erase 'tail'
+        strip_5.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel  
+      } else if (85 < count && count < 103) {
+        strip_5.setPixelColor(i, 0); // Erase 'tail'
+        strip_7.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel 
+      } else if (102 < count && count < 120) {
+        strip_7.setPixelColor(i, 0); // Erase 'tail'
+        strip_6.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel    
+      } else if (119 < count && count < 137) {
+        strip_6.setPixelColor(i, 0); // Erase 'tail'
+        strip_8.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel    
+      }
+      Serial.printf("led %i\n", i);
+      Serial.printf("count %i\n", count);
+      count++;
+      showStrips();
+      delay(50);
+    }
+  }
 }
 
 // Rain Program
