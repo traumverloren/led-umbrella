@@ -251,37 +251,34 @@ void sparkle() {
 }
 
 void snake() {
-  uint16_t count = 0;
+  uint16_t count = 1;
   for(int x=0; x < stripCount; x++) {
     for(uint16_t i=0; i<ledCount; i++) {
       if (count < 18) {
-         strip_8.setPixelColor(i, 0); // Erase 'tail'
+         strip_8.setPixelColor(16-i, 0); // Erase 'tail'
          strip_1.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
-      } else if ( 17 < count && count < 35) {
-        Serial.printf("here! %i\n", count);
+      } else if (17 < count && count < 35) {
          strip_1.setPixelColor(i, 0); // Erase 'tail'
          strip_2.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
       } else if (34 < count && count < 52) {
-         strip_2.setPixelColor(i, 0); // Erase 'tail'
+         strip_2.setPixelColor(16-i, 0); // Erase 'tail'
          strip_3.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
       } else if (51 < count && count < 69) {
          strip_3.setPixelColor(i, 0); // Erase 'tail'
          strip_4.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel      
       } else if (68 < count && count < 86) {
-        strip_4.setPixelColor(i, 0); // Erase 'tail'
+        strip_4.setPixelColor(16-i, 0); // Erase 'tail'
         strip_5.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel  
       } else if (85 < count && count < 103) {
         strip_5.setPixelColor(i, 0); // Erase 'tail'
         strip_7.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel 
       } else if (102 < count && count < 120) {
-        strip_7.setPixelColor(i, 0); // Erase 'tail'
+        strip_7.setPixelColor(16-i, 0); // Erase 'tail'
         strip_6.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel    
       } else if (119 < count && count < 137) {
         strip_6.setPixelColor(i, 0); // Erase 'tail'
         strip_8.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel    
       }
-      Serial.printf("led %i\n", i);
-      Serial.printf("count %i\n", count);
       count++;
       showStrips();
       delay(50);
