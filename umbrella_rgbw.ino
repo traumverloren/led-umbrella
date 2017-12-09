@@ -243,9 +243,12 @@ void sparkle() {
   int y = random(17);
   strips[x][y] = strip_1.Color(255, 255, 255);
 
-  x = random(8);
-  y = random(17);
-  strips[x][y] = 0;
+  // dim any leds that are on
+  for(int x=0; x < stripCount; x++) {
+    for(int y=0; y< ledCount; y++) {
+      strips[x][y] = DimColor(strips[x][y], .90);  
+    }
+  }
 
   updateStrips();
 }
