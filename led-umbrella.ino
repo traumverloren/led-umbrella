@@ -1,14 +1,22 @@
 #include <ESP8266WiFi.h>
 #include <Adafruit_NeoPixel.h> // Include the adafruit Neopixel Library
 #include <MQTTClient.h>
+#include "arduino_secrets.h" 
 
-const char ssid[] = "ssid";
-const char pass[] = "password";
+const char ssid[] = SECRET_SSID;
+const char pass[] = SECRET_PASS;
 
 WiFiClient net;
 MQTTClient client;
 
 unsigned long lastMillis = 0;
+bool rainbowOn = false;
+int colorR = 0;
+int colorG = 0;
+int colorB = 255;
+uint16_t TotalSteps = 400;  // total number of steps in the pattern
+uint16_t Index;  // current step within the pattern
+uint32_t Color1, Color2;  // What colors are in use (used by Fade)
 
 void connect();  // <- predefine connect() for setup()
 
@@ -16,9 +24,8 @@ const int stripCount = 8;
 const int ledCount = 17;
 const int brightness = 100;
 
-enum mode {modeColorWipe, modeRainbowRain, modeRain, modeRainbow, modeRainbowSparkle, modeSnake, modeSparkle};
-mode currentMode = modeRainbowSparkle;
-
+enum mode {modeFade, modeRain, modeSnake, modeSparkle};
+mode currentMode = modeRain;
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = pin number (most are valid)
@@ -49,11 +56,7 @@ void setup() {
   Serial.begin(115200);
   WiFi.begin(ssid, pass);
 
-  // Note: Local domain names (e.g. "Computer.local" on OSX) are not supported by Arduino.
-  // You need to set the IP address directly.
-  //
-  // MQTT brokers usually use port 8883 for secure connections.
-  client.begin("IP_ADDRESS", 1883, net);
+  client.begin(IP_ADDRESS, PORT, net);
   client.onMessage(messageReceived);
 
   connect();
@@ -67,7 +70,7 @@ void connect() {
   }
 
   Serial.print("\nconnecting...");
-  while (!client.connect("led-umbrella", "key", "token")) {
+  while (!client.connect("led-umbrella", "", "")) {
     Serial.print(".");
     delay(1000);
   }
@@ -76,43 +79,73 @@ void connect() {
   client.subscribe("lights");
 }
 
-void loop() {
-  Serial.printf("loop heap size: %u\n", ESP.getFreeHeap());
+
+void messageReceived(String &topic, String &payload) {
+  const char* delimiter = ",";
+  String incomingMode = payload.substring(0,payload.indexOf(delimiter));
+  String colorValue   = payload.substring(incomingMode.length()+2,payload.length());
+  Serial.println("topic: " + topic);
+  Serial.println("payload: " + incomingMode);
   
+  if(colorValue == "rainbow") {
+    rainbowOn = true;
+    colorR = 0;
+    colorG = 0;
+    colorB = 0;
+    Serial.println("color: " + colorValue);
+  }
+  else {
+    rainbowOn = false;  
+    // rainbow not used, get color values
+    String colorStringR = colorValue.substring(0, colorValue.indexOf(delimiter));
+    colorValue.remove(0,colorStringR.length()+2);
+    String colorStringG = colorValue.substring(0, colorValue.indexOf(delimiter));
+    colorValue.remove(0,colorStringG.length()+2);
+    String colorStringB = colorValue.substring(0, colorValue.indexOf(delimiter));
+    Serial.println("colorR: " + colorStringR);
+    Serial.println("colorG: " + colorStringG);
+    Serial.println("colorB: " + colorStringB);
+    colorR = colorStringR.toInt();
+    colorG = colorStringG.toInt();
+    colorB = colorStringB.toInt();
+  }
+  trigger(incomingMode.c_str());
+}
+
+void trigger(const char* event) {
+  if (strcmp(event, "fade") == 0){
+     currentMode = modeFade;
+  } else if (strcmp(event, "rain") == 0){
+     currentMode = modeRain;
+  } else if (strcmp(event, "sparkle") == 0){
+     currentMode = modeSparkle;
+  } else if (strcmp(event, "snake") == 0){
+   currentMode = modeSnake;
+  }
+}
+
+void loop() {
   switch(currentMode)
   {
-    case modeColorWipe:
-      Serial.print("colorWipe\n");
-      colorWipe(strip_1.Color(0, 0, 0, 255), 50); // White
+    case modeFade:
+      Serial.print("fade\n");
+      runFade(140);
       break;
-    case modeRainbow:
-      Serial.print("rainbow\n");
-      rainbow();
-      break;
-    case modeRain:
+     case modeRain:
       Serial.print("rain\n");
-      rain();
-      break;
-    case modeRainbowRain:
-      Serial.print("rainbow rain\n");
-      rainbowRain();
-      break;
-   case modeRainbowSparkle:
-      Serial.print("rainbowSparkle\n");
-      rainbowSparkle();
+      rain(25);
       break;
     case modeSparkle:
       Serial.print("sparkle\n");
-      sparkle();
+      sparkle(80);
       break;
     case modeSnake:
       Serial.print("snake\n");
-      snake();
+      snake(30);
       break;
     default:
       break;
   }
-  
   client.loop();
   delay(10);  // <- fixes some issues with WiFi stability
 
@@ -121,34 +154,60 @@ void loop() {
   }
 }
 
-void messageReceived(String &topic, String &payload) {
-  Serial.println("incoming: " + topic + " - " + payload);
-  trigger(payload.c_str());
+
+//Rainbow Program
+void rainbow() {
+  int j, x, y;
+  
+  for(j=1; j < 256; j++) {
+    for(x=0; x < stripCount; x++) {
+      for(y=ledCount-1; y>=0; y--) {   
+        pixelStrips[x].setPixelColor(y, Wheel(j));
+      }
+      pixelStrips[x].show();
+    }
+  }  
 }
 
-void trigger(const char* event) {
-  if(strcmp(event, "rainbow") == 0) {
-    Serial.printf("trigger event %s\n", event);
-    currentMode = modeRainbow;
-  } else if (strcmp(event, "colorWipe") == 0){
-     Serial.printf("trigger event %s\n", event);
-     currentMode = modeColorWipe;
-  } else if (strcmp(event, "rainbowRain") == 0){
-     Serial.printf("trigger event %s\n", event);
-     currentMode = modeRainbowRain;
-  } else if (strcmp(event, "rain") == 0){
-     Serial.printf("trigger event %s\n", event);
-     currentMode = modeRain;
-  } else if (strcmp(event, "sparkle") == 0){
-     Serial.printf("trigger event %s\n", event);
-     currentMode = modeSparkle;
-  } else if (strcmp(event, "snake") == 0){
-   Serial.printf("trigger event %s\n", event);
-   currentMode = modeSnake;
-  } else if (strcmp(event, "rainbowSparkle") == 0){
-    Serial.printf("trigger event %s\n", event);
-    currentMode = modeRainbowSparkle;
-   }
+// Fill the dots one after the other with a color
+void runFade(uint8_t wait) {
+  if(rainbowOn == true) {
+    int j, x, y;
+    for(j=1; j < 256; j++) {
+      for(x=0; x < stripCount; x++) {
+        for(y=ledCount-1; y>=0; y--) {   
+          pixelStrips[x].setPixelColor(y, Wheel(j));
+        }
+        pixelStrips[x].show();
+      }
+    }  
+  }
+  else {
+    Index = 0;
+    Color1 = strip_1.Color(colorR, colorG, colorB);
+    Color2 = strip_1.Color(1,1,1);
+    while(Index+50 <= TotalSteps) {
+      fadeCycle();  // Fading darker
+      Index++;
+    }
+    while(Index > 50) {
+      fadeCycle();  // Fading brighter
+      Index--;
+    }
+  }
+  delay(wait);
+}
+void fadeCycle() {
+  int x, y;
+  uint8_t red = ((Red(Color1) * (TotalSteps - Index)) + (Red(Color2) * Index)) / TotalSteps;
+  uint8_t green = ((Green(Color1) * (TotalSteps - Index)) + (Green(Color2) * Index)) / TotalSteps;
+  uint8_t blue = ((Blue(Color1) * (TotalSteps - Index)) + (Blue(Color2) * Index)) / TotalSteps;
+  for(x=0; x < stripCount; x++) {
+    for(y=ledCount-1; y>=0; y--) {   
+      pixelStrips[x].setPixelColor(y, strip_1.Color(red, green, blue));
+    }
+    pixelStrips[x].show();     
+  }
 }
 
 void showStrips() {
@@ -167,31 +226,90 @@ void updateStrips() {
   }  
 }
 
-// Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<strip_1.numPixels(); i++) {
-      strip_1.setPixelColor(i, c);
-      strip_2.setPixelColor(i, c);
-      strip_3.setPixelColor(i, c);
-      strip_4.setPixelColor(i, c);
-      strip_5.setPixelColor(i, c);
-      strip_6.setPixelColor(i, c);
-      strip_7.setPixelColor(i, c);
-      strip_8.setPixelColor(i, c);
-      showStrips();
-      delay(wait);
+void snake(uint8_t wait) {
+  uint16_t count = 1;
+  uint32_t color = strip_1.Color(colorR, colorG, colorB);
+  if (rainbowOn == true) {
+    for(int x=0; x < stripCount; x++) {
+      for(uint16_t i=0; i<ledCount; i++) {
+        if (count < 18) {
+           strip_8.setPixelColor(16-i, 0); // Erase 'tail'
+           strip_1.setPixelColor(i, Wheel(Index)); // Draw 'head' pixel
+        } else if (17 < count && count < 35) {
+           strip_1.setPixelColor(i, 0); // Erase 'tail'
+           strip_2.setPixelColor(16-i, Wheel(Index)); // Draw 'head' pixel
+        } else if (34 < count && count < 52) {
+           strip_2.setPixelColor(16-i, 0); // Erase 'tail'
+           strip_3.setPixelColor(i, Wheel(Index)); // Draw 'head' pixel
+        } else if (51 < count && count < 69) {
+           strip_3.setPixelColor(i, 0); // Erase 'tail'
+           strip_4.setPixelColor(16-i, Wheel(Index)); // Draw 'head' pixel      
+        } else if (68 < count && count < 86) {
+          strip_4.setPixelColor(16-i, 0); // Erase 'tail'
+          strip_5.setPixelColor(i, Wheel(Index)); // Draw 'head' pixel  
+        } else if (85 < count && count < 103) {
+          strip_5.setPixelColor(i, 0); // Erase 'tail'
+          strip_7.setPixelColor(16-i, Wheel(Index)); // Draw 'head' pixel 
+        } else if (102 < count && count < 120) {
+          strip_7.setPixelColor(16-i, 0); // Erase 'tail'
+          strip_6.setPixelColor(i, Wheel(Index)); // Draw 'head' pixel    
+        } else if (119 < count && count < 137) {
+          strip_6.setPixelColor(i, 0); // Erase 'tail'
+          strip_8.setPixelColor(16-i, Wheel(Index)); // Draw 'head' pixel    
+        }
+        Index++;
+        if(Index > 255) {
+          Index = 0;
+        }
+        count++;
+        showStrips();
+        delay(wait);
+      }
+    }
+  } else {
+      for(int x=0; x < stripCount; x++) {
+        for(uint16_t i=0; i<ledCount; i++) {
+          if (count < 18) {
+             strip_8.setPixelColor(16-i, 0); // Erase 'tail'
+             strip_1.setPixelColor(i, color); // Draw 'head' pixel
+          } else if (17 < count && count < 35) {
+             strip_1.setPixelColor(i, 0); // Erase 'tail'
+             strip_2.setPixelColor(16-i, color); // Draw 'head' pixel
+          } else if (34 < count && count < 52) {
+             strip_2.setPixelColor(16-i, 0); // Erase 'tail'
+             strip_3.setPixelColor(i, color); // Draw 'head' pixel
+          } else if (51 < count && count < 69) {
+             strip_3.setPixelColor(i, 0); // Erase 'tail'
+             strip_4.setPixelColor(16-i, color); // Draw 'head' pixel      
+          } else if (68 < count && count < 86) {
+            strip_4.setPixelColor(16-i, 0); // Erase 'tail'
+            strip_5.setPixelColor(i, color); // Draw 'head' pixel  
+          } else if (85 < count && count < 103) {
+            strip_5.setPixelColor(i, 0); // Erase 'tail'
+            strip_7.setPixelColor(16-i, color); // Draw 'head' pixel 
+          } else if (102 < count && count < 120) {
+            strip_7.setPixelColor(16-i, 0); // Erase 'tail'
+            strip_6.setPixelColor(i, color); // Draw 'head' pixel    
+          } else if (119 < count && count < 137) {
+            strip_6.setPixelColor(i, 0); // Erase 'tail'
+            strip_8.setPixelColor(16-i, color); // Draw 'head' pixel    
+          }
+          count++;
+          showStrips();
+          delay(wait);
+        }
+     }
   }
 }
 
-// MR SPARKLE PROGRAM!!!!
-// Call createSparkle with white color
-void sparkle() {
-  createSparkle(strip_1.Color(255, 255, 255));
-}
-
-// Call createSparkle with random color
-void rainbowSparkle() {
-  createSparkle(strip_1.Color(random(255), random(255), random(255)));
+void sparkle(uint8_t wait) {
+  uint32_t color;
+  if (rainbowOn == true) {
+    createSparkle(strip_1.Color(random(255), random(255), random(255)));
+  } else {
+    createSparkle(strip_1.Color(colorR, colorG, colorB)); 
+  }
+  delay(wait);
 }
 
 // Draw 2 random leds, dim all leds, repeat
@@ -215,53 +333,15 @@ void createSparkle(uint32_t color) {
   updateStrips();
 }
 
-void snake() {
-  uint16_t count = 1;
-  for(int x=0; x < stripCount; x++) {
-    for(uint16_t i=0; i<ledCount; i++) {
-      if (count < 18) {
-         strip_8.setPixelColor(16-i, 0); // Erase 'tail'
-         strip_1.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
-      } else if (17 < count && count < 35) {
-         strip_1.setPixelColor(i, 0); // Erase 'tail'
-         strip_2.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
-      } else if (34 < count && count < 52) {
-         strip_2.setPixelColor(16-i, 0); // Erase 'tail'
-         strip_3.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel
-      } else if (51 < count && count < 69) {
-         strip_3.setPixelColor(i, 0); // Erase 'tail'
-         strip_4.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel      
-      } else if (68 < count && count < 86) {
-        strip_4.setPixelColor(16-i, 0); // Erase 'tail'
-        strip_5.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel  
-      } else if (85 < count && count < 103) {
-        strip_5.setPixelColor(i, 0); // Erase 'tail'
-        strip_7.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel 
-      } else if (102 < count && count < 120) {
-        strip_7.setPixelColor(16-i, 0); // Erase 'tail'
-        strip_6.setPixelColor(i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel    
-      } else if (119 < count && count < 137) {
-        strip_6.setPixelColor(i, 0); // Erase 'tail'
-        strip_8.setPixelColor(16-i, strip_1.Color(75, 250, 100, 0)); // Draw 'head' pixel    
-      }
-      count++;
-      showStrips();
-      delay(30);
-    }
-  }
-}
-
 // Rain Program
-void rain() {
-  delay(10);
-  uint32_t color = strip_1.Color(0, 0, 255);
-  createRain(color);
-}
-
-// Rainbow Rain Program
-void rainbowRain() {
-  delay(25);
-  uint32_t color = strip_1.Color(random(255), random(255), random(255));
+void rain(uint8_t wait) {
+  delay(wait);
+  uint32_t color;
+  if (rainbowOn == true) {
+    color = strip_1.Color(random(255), random(255), random(255));
+  } else {
+    color = strip_1.Color(colorR, colorG, colorB);
+  }
   createRain(color);
 }
 
@@ -282,20 +362,6 @@ void createRain(uint32_t color) {
   strips[random(stripCount)][0] = color;
 
   updateStrips();
-}
-
-//Rainbow Program
-void rainbow() {
-  int j, x, y;
-  
-  for(j=1; j < 256; j++) {
-    for(x=0; x < stripCount; x++) {
-      for(y=ledCount-1; y>=0; y--) {   
-        pixelStrips[x].setPixelColor(y, Wheel(j));
-      }
-      pixelStrips[x].show();
-    }
-  }  
 }
 
 // Input a value 0 to 255 to get a color value.
