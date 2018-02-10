@@ -1,6 +1,7 @@
-#include <ESP8266WiFi.h>
 #include <Adafruit_NeoPixel.h> // Include the adafruit Neopixel Library
 #include <MQTTClient.h>
+#include <SPI.h>
+#include <WiFi101.h>
 #include "arduino_secrets.h" 
 
 const char ssid[] = SECRET_SSID;
@@ -22,7 +23,7 @@ void connect();  // <- predefine connect() for setup()
 
 const int stripCount = 8;
 const int ledCount = 17;
-const int brightness = 100;
+const int brightness = 150;
 
 enum mode {modeFade, modeRain, modeSnake, modeSparkle};
 mode currentMode = modeRain;
@@ -34,19 +35,20 @@ mode currentMode = modeRain;
 //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-Adafruit_NeoPixel strip_1 = Adafruit_NeoPixel(ledCount, 4, NEO_GRBW + NEO_KHZ800);
-Adafruit_NeoPixel strip_2 = Adafruit_NeoPixel(ledCount, 5, NEO_GRBW + NEO_KHZ800);
-Adafruit_NeoPixel strip_3 = Adafruit_NeoPixel(ledCount, 2, NEO_GRBW + NEO_KHZ800);  
-Adafruit_NeoPixel strip_4 = Adafruit_NeoPixel(ledCount, 0, NEO_GRBW + NEO_KHZ800);  
-Adafruit_NeoPixel strip_5 = Adafruit_NeoPixel(ledCount, 15, NEO_GRBW + NEO_KHZ800);
-Adafruit_NeoPixel strip_6 = Adafruit_NeoPixel(ledCount, 12, NEO_GRBW + NEO_KHZ800);  
-Adafruit_NeoPixel strip_7 = Adafruit_NeoPixel(ledCount, 13, NEO_GRBW + NEO_KHZ800);  
-Adafruit_NeoPixel strip_8 = Adafruit_NeoPixel(ledCount, 14, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip_1 = Adafruit_NeoPixel(ledCount, 5, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip_2 = Adafruit_NeoPixel(ledCount, 6, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip_3 = Adafruit_NeoPixel(ledCount, 10, NEO_GRBW + NEO_KHZ800);  
+Adafruit_NeoPixel strip_4 = Adafruit_NeoPixel(ledCount, 11, NEO_GRBW + NEO_KHZ800);  
+Adafruit_NeoPixel strip_5 = Adafruit_NeoPixel(ledCount, 12, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip_6 = Adafruit_NeoPixel(ledCount, A5, NEO_GRBW + NEO_KHZ800);  
+Adafruit_NeoPixel strip_7 = Adafruit_NeoPixel(ledCount, A4, NEO_GRBW + NEO_KHZ800);  
+Adafruit_NeoPixel strip_8 = Adafruit_NeoPixel(ledCount, A3, NEO_GRBW + NEO_KHZ800);
 
 Adafruit_NeoPixel pixelStrips[8] = {strip_1, strip_2, strip_3, strip_4, strip_5, strip_6, strip_7, strip_8};
 uint32_t strips[stripCount][ledCount];
 
 void setup() {  
+  WiFi.setPins(8,7,4,2);
   for(int x=0; x < stripCount; x++) {
       pixelStrips[x].begin();
       pixelStrips[x].setBrightness(brightness);
@@ -129,7 +131,7 @@ void loop() {
   {
     case modeFade:
       Serial.print("fade\n");
-      runFade(140);
+      runFade(110);
       break;
      case modeRain:
       Serial.print("rain\n");
@@ -137,7 +139,7 @@ void loop() {
       break;
     case modeSparkle:
       Serial.print("sparkle\n");
-      sparkle(80);
+      sparkle(50);
       break;
     case modeSnake:
       Serial.print("snake\n");
