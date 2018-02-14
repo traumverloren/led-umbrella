@@ -11,11 +11,11 @@ WiFiClient net;
 MQTTClient client;
 
 unsigned long lastMillis = 0;
-bool rainbowOn = false;
+bool rainbowOn = true;
 int colorR = 0;
 int colorG = 0;
-int colorB = 255;
-uint16_t TotalSteps = 400;  // total number of steps in the pattern
+int colorB = 0;
+uint16_t TotalSteps = 256;  // total number of steps in the pattern
 uint16_t Index;  // current step within the pattern
 uint32_t Color1, Color2;  // What colors are in use (used by Fade)
 
@@ -25,8 +25,8 @@ const int stripCount = 8;
 const int ledCount = 17;
 const int brightness = 150;
 
-enum mode {modeFade, modeRain, modeSnake, modeSparkle};
-mode currentMode = modeRain;
+enum mode {modeCarousel, modeFade, modeRain, modeSnake, modeSparkle};
+mode currentMode = modeCarousel;
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = pin number (most are valid)
@@ -44,7 +44,7 @@ Adafruit_NeoPixel strip_6 = Adafruit_NeoPixel(ledCount, A5, NEO_GRBW + NEO_KHZ80
 Adafruit_NeoPixel strip_7 = Adafruit_NeoPixel(ledCount, A4, NEO_GRBW + NEO_KHZ800);  
 Adafruit_NeoPixel strip_8 = Adafruit_NeoPixel(ledCount, A3, NEO_GRBW + NEO_KHZ800);
 
-Adafruit_NeoPixel pixelStrips[8] = {strip_1, strip_2, strip_3, strip_4, strip_5, strip_6, strip_7, strip_8};
+Adafruit_NeoPixel pixelStrips[8] = {strip_1, strip_2, strip_3, strip_4, strip_5, strip_7, strip_6, strip_8};
 uint32_t strips[stripCount][ledCount];
 
 void setup() {  
@@ -116,22 +116,30 @@ void messageReceived(String &topic, String &payload) {
 
 void trigger(const char* event) {
   if (strcmp(event, "fade") == 0){
+     TotalSteps = 300;
      currentMode = modeFade;
   } else if (strcmp(event, "rain") == 0){
      currentMode = modeRain;
   } else if (strcmp(event, "sparkle") == 0){
      currentMode = modeSparkle;
   } else if (strcmp(event, "snake") == 0){
-   currentMode = modeSnake;
+     currentMode = modeSnake;
+  } else if (strcmp(event, "carousel") == 0){
+     TotalSteps = 255;
+     currentMode = modeCarousel;
   }
 }
 
 void loop() {
   switch(currentMode)
   {
+    case modeCarousel:
+      Serial.print("carousel\n");
+      carousel(80);
+      break;
     case modeFade:
       Serial.print("fade\n");
-      runFade(110);
+      runFade(80);
       break;
      case modeRain:
       Serial.print("rain\n");
@@ -316,14 +324,13 @@ void sparkle(uint8_t wait) {
 
 // Draw 2 random leds, dim all leds, repeat
 void createSparkle(uint32_t color) {
-    
   // dim any leds that are on
   for(int x=0; x < stripCount; x++) {
     for(int y=0; y< ledCount; y++) {
       strips[x][y] = DimColor(strips[x][y], .85);  
     }
   }
-
+  DimAllLights(.85);
   int x = random(stripCount);
   int y = random(ledCount);
   strips[x][y] = color;
@@ -354,7 +361,7 @@ void createRain(uint32_t color) {
     for(int y=ledCount-1; y>0; y--) {
       if (strips[x][y-1] != 0) {
           strips[x][y] = strips[x][y-1];
-          strips[x][y-1] = DimColor(strips[x][y-1], .50);  
+          strips[x][y-1] = DimColor(strips[x][y-1], .80);  
       }
     }
     // each row: special case turn off all first lights
@@ -362,7 +369,6 @@ void createRain(uint32_t color) {
   }
   // turn on light at first position of random strip
   strips[random(stripCount)][0] = color;
-
   updateStrips();
 }
 
@@ -378,6 +384,46 @@ uint32_t Wheel(int WheelPos) {
     WheelPos -= 170;
     return strip_1.Color(0, WheelPos * 3, 255 - WheelPos * 3);
   }
+}
+
+// Run lights around the strips
+void carousel(uint8_t wait) {
+  if(rainbowOn == true) {
+    if (Index >= TotalSteps) {
+      Index = 0;
+    }
+    for(int x=0; x < stripCount; x++) {
+      uint32_t currentColor = Wheel(((x * 256 / stripCount) + Index) & 255);
+      for(int y=ledCount-1; y>=0; y--) {   
+        pixelStrips[x].setPixelColor(y, currentColor);
+      }
+      pixelStrips[x].show();
+    }
+    Index++;
+  }
+  else {
+    Color1 = strip_1.Color(colorR, colorG, colorB);
+    Color2 = strip_1.Color(0,0,0);
+    for(int z=0; z<stripCount; z++) {
+      DimAllLights(.40);
+      
+      // light up one strip
+      for(int y=ledCount-1; y>=0; y--) {
+        strips[z][y] = Color1;         
+      }
+      updateStrips();
+      delay(wait);
+    }
+  }
+}
+
+// Dim all lights by this much
+void DimAllLights(float dimAmount) {
+  for(int x=0; x<stripCount; x++) {
+    for(int y=ledCount-1; y>=0; y--) {
+      strips[x][y] = DimColor(strips[x][y], dimAmount);  
+    }        
+  }  
 }
 
 // Returns the Red component of a 32-bit color
